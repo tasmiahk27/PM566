@@ -1,0 +1,146 @@
+---
+title: "Lab03"
+format: html
+editor: visual
+embed-resources: true
+---
+
+## Reading in Data
+
+```{r}
+met <- read.csv("~/Downloads/met_all.gz")
+#View(met)
+```
+
+## Checking dimensions, headers, footers
+
+```{r}
+
+dim(met)
+
+head(met)
+
+tail(met)
+```
+
+## Looking at variables
+
+```{r}
+str(met)
+```
+
+## Closer look at variables
+
+```{r}
+
+table(met$year)
+
+```
+
+```{r}
+table(met$day)
+
+```
+
+```{r}
+
+table(met$hour)
+
+```
+
+```{r}
+
+summary(met$temp)
+
+
+```
+
+```{r}
+
+summary(met$elev)
+
+```
+
+```{r}
+
+summary(met$wind.sp)
+
+```
+
+```{r}
+met$elev[met$elev==9999.0] <- NA
+summary(met$elev)
+```
+
+The highest weather station is at 4113 meters.
+
+```{r}
+met <- met[met$temp > -40, ]
+met2 <- met[order(met$temp), ]
+head(met2)
+```
+
+## Checking data with an external source
+
+The geographic coordinates of (38.767, -104.3) is located at a point in Colorado, east of the Colorado Springs. The average high temperature of this area in August is 82.0 °F / 27.7 °C and average low temperature is 54.0 °F / 12.2 °C. We would not expect to see a -17.2 °C measurement typically. According to topographic maps online, the expected elevations surrounding this area would fall in the range of around 1580 meters to 2280 meters.
+
+I decide to remove the odd temperatures below -15 °C to address the lowest temperature of -17.2 °C. The new dataset has a minimum of -3 °C.
+
+```{r}
+met <- met[met$temp > -15, ]
+met2 <- met[order(met$temp), ]
+head(met2)
+```
+
+## Calculating summary statistics
+
+```{r}
+elev <- met[met$elev == max(met$elev, na.rm=TRUE), ]
+summary(elev)
+```
+
+```{r}
+cor(elev$temp, elev$wind.sp, use="complete")
+cor(elev$temp, elev$hour, use="complete")
+cor(elev$wind.sp, elev$day, use="complete")
+cor(elev$wind.sp, elev$hour, use="complete")
+cor(elev$temp, elev$day, use="complete")
+```
+
+## Summary statistics
+
+```{r}
+hist(met$elev, breaks=100)
+
+hist(met$temp)
+
+hist(met$wind.sp)
+```
+
+## Weather Station with Highest Elevation
+
+```{r}
+library(leaflet)
+leaflet(elev) %>% 
+    addProviderTiles('OpenStreetMap') %>% 
+    addCircles(lat=~lat,lng=~lon, opacity=1, fillOpacity=1, radius=100)
+```
+
+## Date-Time Variable for Times Series of Temperature and Speed at this Location
+
+```{r}
+library(lubridate)
+elev$date <- with(elev, ymd_h(paste(year, month, day, hour, sep= ' ')))
+summary(elev$date)
+elev <- elev[order(elev$date), ]
+head(elev)
+```
+
+## Plots of Time-Series of Temperature and Wind Speed Plots
+
+```{r}
+plot(elev$date, elev$temp, type='l')
+plot(elev$date, elev$wind.sp, type='l')
+```
+
+At the weather station with the maximum highest elevation, the wind speed peaks the highest after a couple of days past August 5th to August 19, dips in between August 19 to August 26, and there is a final peal at August 26 until it dips again slightly. At September 2, the peak is higher compared to the beginning of the plot around beginning of August. Temperatures were consistent between highest elevation and temperature as the dates progress from beginning of August to beginning of September. There is no sharp peaks or dips compared to the wind speed plot.
