@@ -148,3 +148,4 @@ plot(elev$date, elev$wind.sp, type='l')
 ```
 
 At the weather station with the maximum highest elevation, the wind speed peaks the highest after a couple of days past August 5th to August 19, dips in between August 19 to August 26, and there is a final peal at August 26 until it dips again slightly. At September 2, the peak is higher compared to the beginning of the plot around beginning of August. Temperatures were consistent between highest elevation and temperature as the dates progress from beginning of August to beginning of September. There is no sharp peaks or dips compared to the wind speed plot.
+
