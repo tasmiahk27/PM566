@@ -1,0 +1,283 @@
+---
+title: "Homework1"
+format: html
+editor: visual
+embed-resources: true
+---
+
+## Question 1: EDA Checklist 1-5 on 2002 Dataset
+
+```{r}
+pm_2002 <-read.table("/Users/tasmiahkhan/Downloads/pm25_2002.csv",header = TRUE, sep = ',')
+```
+
+```{r}
+dim(pm_2002)
+nrow(pm_2002)
+ncol(pm_2002)
+```
+
+```{r}
+str(pm_2002)
+```
+
+```{r}
+summary(pm_2002[c("Daily.Mean.PM2.5.Concentration","Daily.AQI.Value", "Site.Latitude", "Site.Longitude")])
+```
+
+```{r}
+table(pm_2002$Date)
+```
+
+```{r}
+table(pm_2002$Daily.Obs.Count)
+```
+
+```{r}
+barplot(table(pm_2002$Date))
+```
+```{r}
+hist(pm_2002$Daily.Mean.PM2.5.Concentration)
+boxplot(pm_2002$Daily.Mean.PM2.5.Concentration, col="pink")
+summary(pm_2002$Daily.Mean.PM2.5.Concentration)
+mean(is.na(pm_2002$Daily.Mean.PM2.5.Concentration))
+```
+```{r}
+pm_2002ss <- pm_2002[pm_2002$Daily.Mean.PM2.5.Concentration == 104.30, c("Daily.AQI.Value", "Site.Latitude", "Site.Longitude")]
+dim(pm_2002ss)
+summary(pm_2002ss)
+```
+```{r}
+pm_2002 <- pm_2002[pm_2002$Daily.Mean.PM2.5.Concentration >= 1,]
+pm_2002 <- pm_2002[order(pm_2002$Daily.Mean.PM2.5.Concentration),]
+```
+
+```{r}
+head(pm_2002)[,c("Date","Local.Site.Name","CBSA.Name","Daily.Mean.PM2.5.Concentration","Daily.AQI.Value", "Site.Latitude", "Site.Longitude")]
+```
+```{r}
+tail(pm_2002)[,c("Date","Local.Site.Name","CBSA.Name","Daily.Mean.PM2.5.Concentration","Daily.AQI.Value", "Site.Latitude", "Site.Longitude")]
+```
+The maximum daily average PM2.5 concentration is 104.3 µg/m³ in Bakersfield, California during November 2002, and the minimum daily average PM2.5 concentration is 1 µg/m³ in Chico, California and Colusa, California. There is no missing data in the daily average PM2.5 concentration variable that we are interested in assessing. The distribution of this key variable is left-skewed with some higher daily average points pulling the tail to the right. After validating with external sources, it is plausible for Bakersfield, California to have concentrations as high as 90-100 µg/m³ for daily average PM2.5 during the months of November and February. This is due to the concept of winter inversions in Bakersfield. As Bakersfield sits at the closed southern end of the San Joaquin Valley, it acts like a physical lid, trapping cold air and heavy pollution near the ground while a layer of warm air moves above and rests on top of the denser and colder air. Therefore, these observations were retained in the data cleaning step. The values that were less than 1 µg/m³ for the minimum daily average PM2.5 concentrations, however, were excluded because it is implausible to have perfectly clean air with no detectable fine particulate matter.
+
+## Question 1: EDA Checklist 1-5 on 2022 Dataset
+
+```{r}
+pm_2022 <-read.table("/Users/tasmiahkhan/Downloads/pm25_2022.csv",header = TRUE, sep = ',')
+```
+
+```{r}
+dim(pm_2022)
+nrow(pm_2022)
+ncol(pm_2022)
+```
+
+```{r}
+str(pm_2022)
+```
+```{r}
+summary(pm_2022[c("Daily.Mean.PM2.5.Concentration","Daily.AQI.Value", "Site.Latitude", "Site.Longitude")])
+```
+
+```{r}
+table(pm_2022$Date)
+```
+```{r}
+table(pm_2022$Daily.Obs.Count)
+```
+```{r}
+barplot(table(pm_2022$Date))
+```
+```{r}
+hist(pm_2022$Daily.Mean.PM2.5.Concentration)
+boxplot(pm_2022$Daily.Mean.PM2.5.Concentration, col="lightblue")
+summary(pm_2022$Daily.Mean.PM2.5.Concentration)
+mean(is.na(pm_2022$Daily.Mean.PM2.5.Concentration))
+```
+
+```{r}
+pm_2022ss <- pm_2022[pm_2022$Daily.Mean.PM2.5.Concentration == 302.50, c("Daily.AQI.Value", "Site.Latitude", "Site.Longitude")]
+dim(pm_2022ss)
+summary(pm_2022ss)
+```
+```{r}
+pm_2022 <- pm_2022[pm_2022$Daily.Mean.PM2.5.Concentration >= 1,]
+pm_2022 <- pm_2022[order(pm_2022$Daily.Mean.PM2.5.Concentration),]
+```
+
+```{r}
+head(pm_2022)[,c("Date","Local.Site.Name","CBSA.Name","Daily.Mean.PM2.5.Concentration","Daily.AQI.Value", "Site.Latitude", "Site.Longitude")]
+```
+
+```{r}
+tail(pm_2022)[,c("Date","Local.Site.Name","CBSA.Name","Daily.Mean.PM2.5.Concentration","Daily.AQI.Value", "Site.Latitude", "Site.Longitude")]
+```
+The maximum daily average PM2.5 concentration is 302.5 µg/m³ in Yreka, California during late July 2022, and the minimum daily average PM2.5 concentration is 1 µg/m³ in Chico, California and San Francisco-Oakland-Hayward, California. There is no missing data in the daily average PM2.5 concentration variable that we are interested in assessing. The distribution of this key variable is extremely left-skewed with extremely high outliers pulling the tail to the right. After validating with external sources, it is plausible for Yreka, California and surrounding areas (Sacramento) to have inflated concentrations as high as 250-300 µg/m³ for daily average PM2.5 during the months of July-September due to heavy smoke from wildfires that summer. Therefore, these observations were retained in the data cleaning step. There were values less than 1 µg/m³ (with a minimum value of -6.7 µg/m³) for the daily average PM2.5 concentrations, which were excluded because it is implausible to have perfectly clean air with no detectable fine particulate matter or negative fine particulate matter.
+
+## Question 2: Combining data
+```{r}
+pm_2022 <- as.data.frame(pm_2022)
+pm_2002 <- as.data.frame(pm_2002)
+pm_merge <- merge(x=pm_2002, y=pm_2022, by="Site.ID", all.x=TRUE, all.y=TRUE) 
+dim(pm_merge)
+str(pm_merge)
+```
+```{r}
+head(pm_merge[, c("Date.x","Local.Site.Name.x","CBSA.Name.x","Daily.Mean.PM2.5.Concentration.x","Daily.AQI.Value.x", "Site.Latitude.x", "Site.Longitude.x", "Date.y","Local.Site.Name.y","CBSA.Name.y","Daily.Mean.PM2.5.Concentration.y","Daily.AQI.Value.y", "Site.Latitude.y", "Site.Longitude.y")], n = 5)
+
+```
+```{r}
+library(stringi)
+pm_merge$year.x <- as.integer(stri_sub(pm_merge$Date.x, -4, -1))
+pm_merge$year.y <- as.integer(stri_sub(pm_merge$Date.y, -4, -1))
+head(pm_merge)
+```
+```{r}
+library(dplyr)
+
+pm_merge <- pm_merge %>% 
+  rename(
+    Date_2002 = Date.x, 
+    Date_2022 = Date.y, 
+    Daily.Mean.Pm2.5_2002 = Daily.Mean.PM2.5.Concentration.x, 
+    Daily.Mean.Pm2.5_2022 = Daily.Mean.PM2.5.Concentration.y, 
+    Daily.AQI.Value_2002 = Daily.AQI.Value.x, 
+    Daily.AQI.Value_2022 = Daily.AQI.Value.y, 
+    year2002 = year.x, 
+    year2022 = year.y)
+
+names(pm_merge)
+```
+## Question 3: Create basic map (leaflet)
+```{r}
+library(leaflet)
+map_data <- pm_merge %>%
+  filter(!is.na(Site.Latitude.x) & !is.na(Site.Longitude.x) &
+         !is.na(Site.Latitude.y) & !is.na(Site.Longitude.y))
+map_data <- pm_merge[!duplicated(pm_merge[, c("Site.Longitude.x", "Site.Latitude.x")]), ]
+
+leaflet() %>%
+  addTiles() %>% 
+  
+
+  addCircleMarkers(
+    data = map_data,
+    lng = ~Site.Longitude.x, lat = ~Site.Latitude.x,
+    color = "red", radius = 4, stroke = FALSE, fillOpacity = 0.6,
+    label = "2002 Site"  
+  ) %>%
+  
+
+  addCircleMarkers(
+    data = map_data,
+    lng = ~Site.Longitude.y, lat = ~Site.Latitude.y,
+    color = "blue", radius = 4, stroke = FALSE, fillOpacity = 0.6,
+    label = "2022 Site"
+  ) %>%
+  
+  addLegend(
+    position = "bottomright",
+    colors = c("red", "blue"),
+    labels = c("2002 Monitoring Sites", "2022 Monitoring Sites"),
+    title = "Monitoring Year"
+  )
+
+```
+## California State PM2.5 Concentration 2002 vs 2022
+```{r}
+library(ggplot2)
+library(tidyr)
+#checked all state variables mention California
+state_data <- pm_merge %>% select(Site.ID,Daily.Mean.Pm2.5_2002, Daily.Mean.Pm2.5_2022) %>%
+    drop_na(Daily.Mean.Pm2.5_2002, Daily.Mean.Pm2.5_2022) %>%
+  pivot_longer(cols=c(Daily.Mean.Pm2.5_2002, Daily.Mean.Pm2.5_2022), names_to="Year", values_to="PM2.5") %>%
+  #switching format of data to stack year 2002 and 2022 into rows that can be subtracted
+  mutate(Year = ifelse(Year == "Daily.Mean.Pm2.5_2002", "2002", "2022")) 
+
+
+state_pm_summary <- state_data %>%
+  group_by(Year)%>%
+  summarize(
+    Min_PM2.5=min(PM2.5),
+    Mean_PM2.5 = mean(PM2.5),
+    Median_PM2.5 = median(PM2.5),
+    Max_PM2.5 = max(PM2.5)
+  )
+print(state_pm_summary)
+
+
+ggplot(state_data, aes(x = Year, y = PM2.5, fill = Year)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "California State PM2.5 Concentration 2002 vs 2022", x = "Year", y = "PM2.5 (ug/m3)")
+
+```
+At the California state level, the boxplots show that 50% of the data and IQR is much smaller and lower in 2022 compared to 2002, however there are large outliers influencing the distribution in the 2022 boxplot. The highest daily average PM2.5 value is 218 in the 2022 group, whereas in the 2002 group, it is 104. Interestingly, the average of daily average PM2.5 values are much higher in the 2002 group with a value of 19.0, and the median of the daily average PM2.5 value is also 14.1. Since the highest value is now 218 in the 2022 group, this means some rows were removed for missing data in either dataset: 2002 or 2022 (maybe site was newly placed or removed over the 20 years). For the overall question of whether daily concentrations of PM2.5 did decrease in California over the 20 years from 2002 to 2022, I would say no because there is still a heavily skewed distribution with extremely high outliers in the 2022 group.
+
+```{r}
+library(ggplot2)
+library(trelliscopejs)
+
+county_data <- pm_merge %>% filter(County.x == County.y) %>% 
+  select(County=County.y, Daily.Mean.Pm2.5_2002, Daily.Mean.Pm2.5_2022) %>%
+  drop_na(Daily.Mean.Pm2.5_2002, Daily.Mean.Pm2.5_2022) %>%
+  pivot_longer(cols=c(Daily.Mean.Pm2.5_2002, Daily.Mean.Pm2.5_2022), names_to="Year", values_to="PM2.5") %>%
+  #switching format of data to stack year 2002 and 2022 into rows that can be subtracted
+  mutate(Year = ifelse(Year == "Daily.Mean.Pm2.5_2002", "2002", "2022")) 
+
+county_pm_summary <- county_data %>%
+  group_by(County, Year) %>% 
+  summarize(
+    Min_PM2.5    = min(PM2.5),
+    Mean_PM2.5   = mean(PM2.5),
+    Median_PM2.5 = median(PM2.5),
+    Max_PM2.5    = max(PM2.5),
+    Total_Sites  = n(),
+    .groups = "drop_last"
+  )
+print(county_pm_summary)
+
+ggplot(county_data, aes(x = Year, y = PM2.5, fill = Year)) +
+  geom_boxplot(outlier.size = 0.5, alpha = 0.8) +
+  theme_minimal(base_size = 8) + 
+  labs( title = "County Level PM2.5 Concentration 2002 vs 2022",
+    x = "Year",
+    y = "PM2.5 Concentration (ug/m3)"
+  ) +
+facet_trelliscope(
+    ~County,
+    nrow = 1,
+    ncol = 3,
+    as_plotly = FALSE,
+    path = "trelliscope"
+  )
+```
+Disclaimer: I had to search up this package in order to print many boxplots for 70+ counties in California. The smallest distributions of daily average PM 2.5 concentrations was found in Trinity County in 2002 and 2022,nearly 1 ug/m3. Riverside had the highest distribution of daily average PM 2.5 concentrations in 2002 with Kern coming in second. For the overall question of whether daily concentrations of PM2.5 did decrease at the county level in California over the 20 years from 2002 to 2022, I would say no because almost all counties seem to have  higher distributions in 2002 compared to 2022.
+
+```{r}
+losangeles <- pm_merge %>% filter(County.x == "Los Angeles" & County.y == "Los Angeles") %>% 
+  select(Daily.Mean.Pm2.5_2002, Daily.Mean.Pm2.5_2022) %>%
+  drop_na(Daily.Mean.Pm2.5_2002, Daily.Mean.Pm2.5_2022) %>%
+  pivot_longer(cols=c(Daily.Mean.Pm2.5_2002, Daily.Mean.Pm2.5_2022), names_to="Year", values_to="PM2.5") %>%
+  #switching format of data to stack year 2002 and 2022 into rows that can be subtracted
+  mutate(Year = ifelse(Year == "Daily.Mean.Pm2.5_2002", "2002", "2022")) 
+
+losangeles_pm_summary <- losangeles %>%
+  group_by(Year)%>%
+  summarize(
+    Min_PM2.5=min(PM2.5),
+    Mean_PM2.5 = mean(PM2.5),
+    Median_PM2.5 = median(PM2.5),
+    Max_PM2.5 = max(PM2.5)
+  )
+print(losangeles_pm_summary)
+
+
+ggplot(losangeles, aes(x = Year, y = PM2.5, fill = Year)) +
+  geom_boxplot(alpha = 0.8) +
+  theme_minimal() +
+  labs(title = "LA County PM2.5 Concentration 2002 vs 2022", x = "Year", y = "PM2.5 (ug/m3)")
+
+```
+
+Similar to what we've seen in the county level visualizations, Los Angeles County has a higher distribution in 2002 compared to 2022 with many outliers pulling the higher whisker end of the plot. A possibility of this observation is that there the air quality was bad due to the 2002 wildfires, according to external sources. all counties seem to have  higher distributions in 2002 compared to 2022. For the overall question of whether daily concentrations of PM2.5 did decrease at the LA county level in California over the 20 years from 2002 to 2022, I would say no because there is still a heavily skewed distribution with extremely high outliers in the 2002 group.
