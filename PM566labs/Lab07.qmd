@@ -1,0 +1,133 @@
+---
+title: "Lab07"
+author: "Tasmiah Khan"
+format: html
+editor: visual
+embed-resources: true
+---
+
+## Question #1
+
+```{r}
+library(xml2)
+library(httr)
+library(stringr)
+
+website <- xml2::read_html("https://pubmed.ncbi.nlm.nih.gov/?term=sars-cov-2")
+
+# Finding the counts
+counts <- xml2::xml_find_first(website, ".//div[contains(@class, 'results-amount')]//span[contains(@class, 'value')]")
+
+# Turning it into text
+counts <- as.character(counts)
+
+# Extracting the data using regex
+totalcount <- stringr::str_extract(counts, "\\d[\\d,.]*")
+
+# Removing any commas/dots so that we can convert to numeric
+totalcount <- gsub("[,.]", "",  totalcount)
+
+totalcount <- as.numeric(totalcount)
+print(totalcount)
+```
+
+There are 278,165 results on PubMed for sars-cov-2.
+
+## Question #2
+
+```{r}
+# read in text, each line is a separate character
+abstracts <- readLines('~/Downloads/abstract-sars-cov-2-set.txt', warn = FALSE)
+# combine all text into one character
+abstracts <- paste(abstracts, collapse = '\n')
+# split the text whenever 3 new lines occur in a row (indicating two blank lines)
+abstracts <- unlist(strsplit(abstracts, split = '\n\n\n'))
+# replace any remaining "\n" symbols with spaces
+abstracts <- gsub("\n", " ", abstracts)
+# replace multiple spaces with single space
+abstracts <- gsub(" +", " ", abstracts)
+abstracts[1:2]
+```
+
+There are 5,347 results on Pubmed for sars-cov-2 and including "california" in our search of publications from 2020 to 2021.
+
+## Question #3
+
+```{r}
+library(stringr)
+institution <- str_extract_all(
+  abstracts,"\\b(?:University of California(?:,| at)?\\s+(?:San Francisco|San Diego|Los Angeles|Santa Barbara|Santa Cruz|Davis|Berkeley|Irvine|Riverside|Merced)|University of(?!\\s+California\\b)\\s+[A-Z][A-Za-z&'-]*(?:\\s+(?:[A-Z][A-Za-z&'-]*|and|of|the))*|[A-Z][A-Za-z&'-]*(?:\\s+(?:[A-Z][A-Za-z&'-]*|and|of|the))*\\s+University(?!\\s+of\\b)|[A-Z][A-Za-z&'-]*(?:\\s+(?:[A-Z][A-Za-z&'-]*|and|of|the))*\\s+Institute of\\s+[A-Z][A-Za-z&'-]*(?:\\s+(?:[A-Z][A-Za-z&'-]*|and|of|the))*)\\b")
+
+institution <- unlist(institution)
+table(institution)
+
+```
+
+```{r}
+
+institution_counts <- sort(
+  table(institution),
+  decreasing = TRUE
+)
+
+
+top10 <- head(institution_counts, 10)
+
+
+top10_institutions <- data.frame(
+  Institution = names(top10),
+  Frequency = as.integer(top10),
+  row.names = NULL
+)
+
+print(top10_institutions)
+```
+
+The top 10 institutions are listed above. At first, I had a different output with the top institution having almost "4000" search results but it only had "University of California." After changing the Regex, I received a different result now with the full name. However, I noticed that there is two different University of California San Francisco names (one with a comma and one without). I would change the regex to group them together if there is a way to do so.
+
+## Question #4
+
+```{r}
+# read in text, each line is a separate character
+abstracts <- readLines('~/Downloads/abstract-sars-cov-2-set.txt', warn = FALSE)
+# combine all text into one character
+abstracts <- paste(abstracts, collapse = '\n')
+# split the text whenever 3 new lines occur in a row (indicating two blank lines)
+abstracts <- unlist(strsplit(abstracts, split = '\n\n\n'))
+```
+
+```{r}
+journal <- str_extract(abstracts, "^\\d+\\.\\s+.*?(?=\\.\\s+(?:20|21)\\d{2}\\b)")
+head(journal)
+
+titles <- sapply(abstracts, function(x){
+  unlist(strsplit(x, split = "\n\n"))[2]
+}, USE.NAMES = FALSE)
+head(titles)
+
+authors <- sapply(
+  abstracts,
+  function(x) {
+    unlist(strsplit(x, split = "\n\n"))[3]
+  },
+  USE.NAMES = FALSE
+)
+head(authors)
+
+affiliations <- str_extract(abstracts, "(?s)(?<=\\n\\nAuthor information:\\n).*?(?=\\n\\n)")
+affiliations <- str_replace_all(
+  affiliations,
+  "\\s*\\n\\s*",
+  " "
+)
+head(affiliations)
+```
+
+```{r}
+papers <- data.frame(
+  journal, titles, authors, affiliations
+)
+
+
+knitr::kable(papers[1:5, ])
+```

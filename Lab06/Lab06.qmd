@@ -1,0 +1,128 @@
+---
+title: "Lab06"
+author: "Tasmiah Khan"
+format: html
+embed-resources: true
+editor: visual
+---
+
+## Setup Packages
+
+```{r}
+library(tidytext)
+```
+
+## Read in Medical Data
+
+```{r}
+library(readr)
+library(dplyr)
+mt_samples <- read_csv("https://raw.githubusercontent.com/USCbiostats/data-science-data/master/00_mtsamples/mtsamples.csv") 
+  mt_samples|> select(description, medical_specialty, transcription)
+
+head(mt_samples)
+
+```
+
+```{r}
+library(ggplot2)
+mt_samples %>%
+  count(medical_specialty, sort = TRUE)
+
+mt_samples %>% arrange(medical_specialty, .by_group = FALSE)  %>% 
+  ggplot(aes(x = medical_specialty)) +
+  geom_bar(fill = "blue") +
+  labs(x = "Medical Specialty", y = "Count") +  coord_flip()
+```
+
+The histogram shows that these categories are not normally distributed and that surgery has the highest peak. The categories are related in that there are some categories labeled as "Office Notes","SOAP/Chart/Progress Notes", "Emergency Room Reports" that can relate to one another in terms of content or overlap.
+
+## Question 2:
+
+```{r}
+library(dplyr)
+library(forcats)
+mt_samples |> 
+    unnest_tokens(token, transcription) |>
+  count(token, sort=TRUE) |> top_n(20,n) |>
+  ggplot(aes(n, fct_reorder(token, n))) +
+  geom_col()
+```
+
+From this result, we see that the top words in the transcription text are "the" mentioned 150,000 times, followed after by "and," which is mentioned about almost 80,000 times. The top 18-19 words from these insights are not that clinically meaningful as they are just filler words. This makes sense because we use these words often in sentences for proper sentence structure, and they should appear more often than other words.
+
+## Question 3:
+
+```{r}
+stop_words |> filter(lexicon=="snowball") |> pull(word) 
+
+mt_samples |> unnest_tokens(token, transcription) |>
+              anti_join(stop_words, by = c("token"="word")) |> filter(is.na(as.integer(token))) |> count(token, sort=TRUE) |> top_n(20,n) |>
+  ggplot(aes(n, fct_reorder(token, n))) +
+  geom_col()
+```
+
+Now, that we have removed stop words and numbers, as well, we can see the meaningful words that show up often in the text. The word patient is mentioned about 22,000 times. Left is mentioned about 11,000 times. Words like "incision", "diagnosis", "artery" , "anterior" , "procedure" could inform the audience that this text is from a medical source, so we do get a better idea of its contents.
+
+## Question 4:
+
+```{r}
+library(dplyr)
+library(forcats)
+mt_samples |> 
+  unnest_ngrams(ngram, transcription, n=2) |>
+  count(ngram, sort=TRUE) |> top_n(20,n) |>
+  ggplot(aes(n, fct_reorder(ngram, n))) +
+  geom_col()
+
+mt_samples |> 
+  unnest_ngrams(ngram, transcription, n=3) |>
+  count(ngram, sort=TRUE) |> top_n(20,n) |>
+  ggplot(aes(n, fct_reorder(ngram, n))) +
+  geom_col()
+```
+
+When we repeat question 2 and tokenize into bi-grams, the results mostly show that "the patient" phrases show up about 20,500 times with "in the" following right after shows up about 12,500 times. Most of the bigram phrases are not as meaningful in the top 20 including phrases such as "on the", "in the", "to the" and "and the." Tri-grams are are more informative as most of the three phrase words provide context such as "no evidence of", "past medical history", "the operating room", "prepped and draped". It still has the highest frequency three-word phrase to be "the patient was" showing up about 6,100 times and followed after by "the patient is" showing up about 3,000 times. These top two words are still not as informative, even when there is an important term like the patient, and this observation makes sense because the top two-word phrase is "the patient". Overall, the tri-gram does a better job of providing more clinically meaningful phrases.
+
+```{r}
+library(tidyverse)
+library(tidytext)
+
+mt_samples|>
+  unnest_ngrams(ngram, transcription, n = 2) |> 
+  separate(ngram, into = c("word1", "word2"), sep = " ") |>
+  select(word1, word2) |>
+  filter(word2 == "operating") |>
+  count(word1, sort = TRUE)
+mt_samples|>
+  unnest_ngrams(ngram, transcription, n = 2) |>
+  separate(ngram, into = c("word1", "word2"), sep = " ") |>
+  select(word1, word2) |>
+  filter(word1 == "operating") |>
+  count(word2, sort = TRUE)
+
+```
+
+I chose the word operating. "The" appears before the word operating 2,000 times and is followed by "to", which appears 47 times. "Room" appears after the word operating 1,594 times followed by "table" which appears 310 times. The words immediately following operating are more meaningful whereas the words before it did have a few stop words. Still, words before operating would be classified as meaningful.
+
+```{r}
+library(dplyr)
+stop_words |> filter(lexicon=="snowball") |> pull(word) 
+mt_samples  |> unnest_tokens(token, transcription) |> group_by(medical_specialty) |>
+  anti_join(stop_words, by = c("token"="word")) |> filter(is.na(as.integer(token))) |> count(token, sort=TRUE) |> slice_max(order_by = n, n=5, with_ties = FALSE) 
+
+```
+
+The 5 most-used words for each specialty is printed above. For Allergy/Immunology, it was history, noted, patient, allergies, and nasal. Autopsy words include left, inch, neck, anterior, and body. Surgery would be patient, left, procedure, anesthesia, and incision, and Urology would be patient, bladder, procedure, left, and history.
+
+## Question 7:
+
+```{r}
+stop_words |> filter(lexicon=="snowball") |> pull(word) 
+mt_samples  |> unnest_tokens(token, transcription) |> group_by(medical_specialty) |>
+  anti_join(stop_words, by = c("token"="word")) |> filter(is.na(as.integer(token))) |> filter(token == "pain") |> count(token, sort=TRUE) |> ggplot(aes(n, fct_reorder(medical_specialty, n))) + geom_col()
+
+
+```
+
+I checked to see in which specialties the word "pain" is used more often. It seems here that it is used more often in Consult of History and Physical Specialty and for about 11,000 times. The word is also used second most often in Orthopedic and for about 750 times, and it is the least used in Autopsy (with it showing up about almost near 0 times.)

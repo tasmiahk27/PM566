@@ -1,0 +1,529 @@
+---
+title: "Assignment02"
+author: "Tasmiah Khan"
+format: html
+editor: visual
+embed-resources: true
+---
+
+## Installing dataset
+
+```{r}
+library(nycflights13)
+
+flights <- flights
+airlines <- airlines
+weather <- weather
+airports <- airports
+
+```
+
+## Question 1: Finding 10 most popular destinations
+
+```{r}
+library(dplyr)
+top10 <- flights |> group_by(dest) |> summarise(num_flights= n()) |> arrange(desc(num_flights))
+print(top10, n=10)
+
+```
+
+The most popular destination was ORD (Chicago, Illinois) with a total of 17,283 flights in 2013, followed by ATL (Atlanta, Georgia) with a total of 17,215 flights. LAX (Los Angeles, California) was third popular with 16,174 flights in 2013. The other 7 destination cities are listed above but references as Boston, Orlando, Charlotte, San Francisco, Fort Lauderdale, Miami, and Arlington.
+
+## Question 2: Creating Two Categorical Variables
+
+```{r}
+# create the new variable one entry at a time
+flights$dep_period <- sapply(1:nrow(flights), function(i){
+  if(is.na(flights$dep_time[i])){
+    return(NA)
+  }
+  if(flights$dep_time[i] < 600){
+      return('early morning')
+    }else if(flights$dep_time[i] < 1200){
+      return('morning')
+    }else if(flights$dep_time[i] <1800){
+      return('afternoon')
+  }else{
+      return('evening')
+  }
+  })
+```
+
+```{r}
+flights$arr_period <- sapply(1:nrow(flights), function(i){
+  if(is.na(flights$arr_time[i])){
+    return(NA)
+  }
+  if(flights$arr_time[i] < 600){
+    return('early morning')
+  }else if(flights$arr_time[i] < 1200){
+    return('morning')
+  }else if(flights$arr_time[i] <1800){
+    return('afternoon')
+  }else{
+    return('evening')
+  }
+})
+   
+```
+
+## Question 2: barplots of categorical period variables
+
+```{r}
+library(ggplot2)
+flights[!is.na(flights$dep_period), ] %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = dep_period, color=dep_period, fill= dep_period)) +labs(title="Departure time of day", x="Departure periods", y="Number of flights")
+
+flights[!is.na(flights$arr_period), ] %>%
+  ggplot() + 
+  geom_bar(mapping = aes(x = arr_period, color=arr_period, fill= arr_period)) +labs(title="Arrival time of day", x="Arrival periods", y="Number of flights")
+```
+
+In departure flights, morning flights were considered the most frequent with almost 120,000 flights followed after by afternoon flights being almost 118,000 flights. In arrival flights, flights were considered the most frequent in the evening with about 120,000 flgihts in the evening, and the second most frequent is about 110,000 flights for afternoon period. Early morning flights were the least often category for departure and arrival flights, at most 12,500 flights for both.
+
+```{r}
+flights |> filter(!is.na(dep_period), !is.na(arr_period)) |> summarize(pct_red_eye = mean(dep_period %in% c('afternoon', 'evening') & arr_period %in% c('early morning', 'morning')) * 100)
+```
+
+The percent of red-eye flights is 3.24% given the condition that a red eye flight is defined by flights that depart in afternoon or evening and flights that arrive in early morning or morning.
+
+## Question 3:
+
+```{r}
+multi <- flights |> filter(!is.na(tailnum)) |> distinct(tailnum, carrier) |> group_by(tailnum) |> summarise(num_carriers = n()) |> filter(num_carriers > 1)
+
+print(multi)
+nrow(multi)
+
+flights |>
+  filter(tailnum %in% multi$tailnum) |>
+  distinct(tailnum, carrier) |>
+  left_join(airlines, by = "carrier") |>
+  arrange(tailnum)
+```
+
+There were 17 planes that flew for multiple airlines. 8 of the planes flew for ExpressJet Airlines Inc. and Endeavor Air Inc, and 9 of the planes flew for Delta Air Lines Inc. and AirTran Airways Corporation.
+
+## Question 4:
+
+```{r}
+# View(airports)
+# View(weather)
+```
+
+The missing relationship between weather and airpots is between origin found in the weather data frame and faa found in the airports data frame. Each row in the weather dataframe is recording weather conditions at one of the three origin NYC airports in 2013, which match up to the three-letter FAA codes for the airports in NYC stored in the airports data frame. I would draw an arrow from the origin under the weathers data frame to the faa in the airports data frame with the tail on the origin and the arrowhead facing the faa.
+
+##Question 5:
+
+```{r}
+library(tidyverse)
+weather <- weather |> mutate(id = paste(year, month, day, hour, origin, sep = "-"))
+                             
+sum(duplicated(weather$id))
+
+weather |> group_by(id) |> filter(n()>1) |> ungroup()|> select(year, month, day, hour, origin, id) |>
+  arrange(id)
+
+
+weather <- weather |> mutate (timehourid = paste(as.numeric(time_hour), id, sep ="-")) 
+
+sum(duplicated(weather$timehourid))
+
+```
+
+After doing some external validation, it seems that November 3, 2013 fell on Daylight Savings Time in New York, causing clocks to fall back by 1 hour at 2 AM. The 1 AM hour actually happens twice that night as New York shifts from Eastern Daylight time to Eastern Standard time. The paste function seemed to print only the local clock reading and treating them as the same date-time string rather than two different moments an hour apart. There are 3 duplicates, and one for each of the 3 airports in New York on this date. When I compared against the pasted time_hour variable, I saw that there 0 duplicates as the time_hour variable records the actual moment in time not the local clock reading that resets after Daylight Savings Time.
+
+##Question 6: Merging Dataset and checking duplicates
+
+```{r}
+
+unique_flights <- unique(flights)
+unique_weather <- unique(weather)
+nrow(weather); nrow(flights); nrow(unique_weather); nrow(unique_flights)
+
+flights_weather <- left_join(flights, weather, by = c("time_hour", "origin")) 
+nrow(flights_weather)
+names(flights_weather)
+
+```
+
+After checking for duplicate rows in both flights and weather datasets, as well as the number of rows in the original dataset, I merged the flights and weather dataset. I found that the number of rows for flights and the new dataset flights_weather are the same, so I know there are no duplicates I need to remove.
+
+## Question 6: EDA #2-5
+
+```{r}
+
+dim(flights_weather)
+str(flights_weather)
+head(flights_weather)
+tail(flights_weather)
+
+hist(flights_weather$temp)
+hist(flights_weather$dewp)
+hist(flights_weather$humid)
+hist(flights_weather$wind_speed)
+hist(flights_weather$wind_gust)
+hist(flights_weather$wind_dir)
+hist(flights_weather$precip)
+hist(flights_weather$pressure)
+hist(flights_weather$visib)
+
+```
+```{r}
+hist(flights_weather$dep_delay)
+hist(flights_weather$arr_delay)
+```
+
+
+The flights_weather dataset is 336,776 rows or flight observations during 2013 in New York, and there are 36 variables, but 4 of them are repeated time variables. There are numerous variable types including numeric, character, and datetime. Flight information is either categorical (origin, dest) or stored as numeric types (arr_delay, dep_delay), while weather variables are all numeric. The time_hour variable formats the date and time. The head shows flights from January 1 of 2013 with complete flight information and the tail shows flights on September 30 of 2013 where there are many missing values of flight information (arrival time, departure time, departure delay, arrival delay).
+
+Departure and arrival histograms are right-skewed, meaning that most delayed flights are experiencing shorter delays while a small number of flights experience extremely long delays. Temperature, dewpoint, humidity, and wind direction all show a lot of variation. Pressure is normally distributed, almost perfectly. 
+
+```{r}
+
+summary(flights_weather$temp)
+summary(flights_weather$dewp)
+summary(flights_weather$humid)
+summary(flights_weather$wind_speed)
+summary(flights_weather$wind_gust)
+summary(flights_weather$wind_dir)
+summary(flights_weather$precip)
+summary(flights_weather$pressure)
+summary(flights_weather$visib)
+
+mean(is.na(flights_weather$wind_gust))
+mean(is.na(flights_weather$pressure))
+```
+
+I examined the distribution of all 9 weather phenomena recorded in the flights_weather dataset. I found dewpoint to has a negative minimum, which is plausible during freezing, dry weather. When I looked through View(flights_weather) to find those rows, most of these negative values were concentrated in the winter period (early January) in New York. Several variables also have a minimum of 0 including wind speed, wind direction, precipitation, and visibility. These are also plausible. Wind speed and wind direction can be 0 during calm atmospheric conditions. A precipitation of 0 means there is 0 chance of rain or snow, and visibility of 0 can occur when dense fogs or blizzards block sight past a certain distance. I found no implausible values in the summary statistics for the 9 variables.
+
+Wind gust is missing in about 76.13% of the data, which limits what it could tell us about weather and flight delays. Pressure is also missing data, but only about 11.52% of the total. The findings for the pressure can somewhat answer the question regarding flight delays with more validity than the wind gust, however, findings should be interpreted with caution because it still has fewer rows than the other variables.
+
+Precipitation is 0 for at least 75% of the data since the 3rd quartile is 0, the mean is 0.0046, and the maximum is 1.21. Visibility is 10 miles for most hours, including the median and 3rd quartile. Since visibility is capped to 10 hours, there is mostly clear conditions. The visibility mean is pulled down to 9.256 most likely from the occasional foggy or rainy hours. Wind direction should also be carefully interpreted as it is measured in degrees of 0 to 360. Since 0 and 360 would be the same direction, a straight comparison with delayed flights would not be meaningful. For the analysis, I plan to categorize wind direction into 8 sectors including: North, South, East, West, Northeast, Northwest, Southeast, Southwest. Measures and distributions of temperature, dewpoint, and humidity look plausible.
+
+## Question 7: Average departure delay
+
+```{r}
+library(dplyr)
+daily_delay <- flights_weather |> filter(!is.na(dep_delay)) |> summarize(avg_dep_delay = mean(dep_delay), .by = c(month.x, day.x))
+
+daily_origin_delay <- flights_weather |> filter(!is.na(dep_delay)) |> summarize(avg_dep_delay = mean(dep_delay), .by = c(month.x, day.x, origin))
+
+hourly_origin_delay <- flights_weather |> filter(!is.na(dep_delay)) |> summarize(avg_dep_delay = mean(dep_delay), .by = c(month.x, day.x, hour.x, origin))
+
+
+daily_delay |> arrange(desc(avg_dep_delay)) |> slice_head(n=1)
+daily_origin_delay |> arrange(desc(avg_dep_delay)) |> slice_head(n=1)
+hourly_origin_delay |> arrange(desc(avg_dep_delay)) |> slice_head(n=1)
+
+```
+
+The worst average length of delay departures is on 03/08/2013 at about 83.53692 minutes of departure delay by each day. Grouped by the airport, LaGuardia airport (LGA) had the worst single day for delays, and it was on the same date 03/08/2013 at 105.7249 minutes late by average delay. Grouped by hour of the day and by airport, LaGuardia airport (LGA) had the worst single hour on 07/28/2013 at hour 21 (9 pm) with an average departure delay of 279.6667 minutes late.
+
+## Question 8: Average arrival delay
+
+```{r}
+library(dplyr)
+data("airports")
+dest_arr_delay <- summarize(flights_weather,avg_arr_delay = mean(arr_delay, na.rm = TRUE), .by = c(dest)) |> arrange(desc(avg_arr_delay))
+
+print(dest_arr_delay)
+
+airports <- left_join(airports, dest_arr_delay, by = c("faa"="dest")) |> filter(!is.na(avg_arr_delay)) |> arrange(desc(avg_arr_delay))
+nrow(airports)
+names(airports)
+print(airports)
+
+```
+
+The highest average arrival delay by the destination airport was Columbia Metropolitan airport for about an average of 41.8 minutes followed by Tulsa International Airport for about an average of 33.7 minutes.
+
+```{r}
+library(ggplot2)
+us_map <- map_data("state") 
+  ggplot() +
+  geom_polygon(data = us_map, aes(x = long, y = lat, group = group), fill = "gray", color = "white") +
+  geom_point(data=airports, aes(x = lon, y = lat, color = avg_arr_delay))
+```
+
+When the graph is plotted by longitude and latitude, two interesting points seem to fall outside of the main states map, but they are the states of Alaska and Hawaii. After further investigation and exploration, I find that roughly at coordinates of 62 N and 150 W, the average arrival delay between -10 to -20 occurs in Alaska. The other point around 22 N and -158 W is around Hawaii, and there is a similar average arrival delay between -10 and -20.
+
+##Question 9:
+
+```{r}
+library(dplyr)
+library(ggplot2)
+hourly_weather_delay  <-  flights_weather |> filter(!is.na(dep_delay)) |> summarize(
+                            avg_dep_delay = mean(dep_delay),
+                            avg_temp       = mean(temp, na.rm = TRUE),
+                            avg_dewp       = mean(dewp, na.rm = TRUE),
+                            avg_humid      = mean(humid, na.rm = TRUE),
+                           avg_wind_dir   = mean(wind_dir, na.rm = TRUE),
+                            avg_wind_speed = mean(wind_speed, na.rm = TRUE),
+                            avg_wind_gust  = mean(wind_gust, na.rm = TRUE),
+                            avg_precip     = mean(precip, na.rm = TRUE),
+                            avg_pressure   = mean(pressure, na.rm = TRUE),
+                            avg_visib      = mean(visib, na.rm = TRUE),
+                            .by = c(month.x, day.x, hour.x, origin)) |> arrange(desc(avg_dep_delay))
+dim(hourly_weather_delay)
+
+
+daily_weather_delay  <- flights_weather |> filter(!is.na(dep_delay)) |> summarize(
+                            avg_dep_delay = mean(dep_delay),
+                            avg_temp       = mean(temp, na.rm = TRUE),
+                            avg_dewp       = mean(dewp, na.rm = TRUE),
+                            avg_humid      = mean(humid, na.rm = TRUE),
+                           avg_wind_dir   = mean(wind_dir, na.rm = TRUE),
+                            avg_wind_speed = mean(wind_speed, na.rm = TRUE),
+                            avg_wind_gust  = mean(wind_gust, na.rm = TRUE),
+                            avg_precip     = mean(precip, na.rm = TRUE),
+                            avg_pressure   = mean(pressure, na.rm = TRUE),
+                            avg_visib      = mean(visib, na.rm = TRUE),
+                            .by = c(month.x, day.x, origin)) |> arrange(desc(avg_dep_delay))
+dim(daily_weather_delay)
+
+
+head(hourly_weather_delay)
+head(daily_weather_delay)
+```
+
+To answer the general question regarding which weather phenomena have the most impact on flight delays, I considered two approaches. I first removed flights with missing dep_delay data, and then I calculated the average departure delay along with the average of each of the 9 weather variables for every airport-hour (grouped by month, day, hour, and origin). The hourly approach will match how weather is recorded at the airport and will allow me to examine an association between departure delay and each weather variable separately with the consideration of within-day variation. I did end up keeping the hourly analysis because it is importatnt to note that weather changes throughout the day. For example, temperature can drop sharply from morning to night. However, the hourly plots showed extreme overplotting, with thousands of points stacked on top of each other. I also repeated the analysis for every airport-day (grouped by month, day, and origin). Each point for airport-day summarizes all of an airport’s flights in a single day, so the plots were less cluttered and easier to interpret. The trade-off is that daily averages blend together short-lived weather events within a day.
+
+## Question 9: Temperature plots - hourly and daily
+
+```{r}
+temp_plots_hourly <- hourly_weather_delay |>
+  filter(!is.na(avg_temp))
+nrow(temp_plots_hourly)
+
+ggplot(temp_plots_hourly, aes(avg_temp, avg_dep_delay)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth() +
+  labs(x = " Average Temperature (F)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average temperature (by airport, hourly)")
+
+temp_plots_daily <- daily_weather_delay |>
+  filter(!is.na(avg_temp))
+nrow(temp_plots_daily)
+
+ggplot(temp_plots_daily, aes(avg_temp, avg_dep_delay)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth() +
+  labs(x = " Average Temperature (F)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average temperature (by airport, daily)")
+
+
+```
+
+Temperature would be considered to have a weak, nonlinear association with departure delays. It is not a strong predictor for airport-daily or airport-hourly plots. In both plots, average departure delay stays at roughly 10-12 minutes across cooler and milder temperatures below 70 degrees Farenheit, and it does rise slightly to almost 20 minutes at temperatures above 75 degrees Farenheit. This increase is pretty modest relative t- large spread in the delays at every temperature, so temperature appears to account for little variation. This observation can reflect other conditions in warmer weather, like summer vacation travel, which can possibly explain some of the delayed flights.
+
+## Question 9: Dewpoint plots - hourly and daily
+
+```{r}
+dewp_plots_hourly <- hourly_weather_delay |>
+  filter(!is.na(avg_dewp))
+nrow(dewp_plots_hourly)
+
+ggplot(dewp_plots_hourly, aes(avg_dewp, avg_dep_delay)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth() +
+  labs(x = " Average Dewpoint (F)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average dewpoint (by airport, hourly)")
+
+dewp_plots_daily <- daily_weather_delay |>
+  filter(!is.na(avg_dewp))
+nrow(dewp_plots_daily)
+
+ggplot(dewp_plots_daily, aes(avg_dewp, avg_dep_delay)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth() +
+  labs(x = " Average Dewpoint (F)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average dewpoint (by airport, daily)")
+```
+
+Dewpoint would be considered to have a weak, nonlinear association with departure delays. It is not a strong predictor for airport-daily or airport-hourly plots. In both plots, average departure delay stays at roughly 10-12 minutes across cooler dewpoints below 60 degrees Farenheit, and it does rise slightly to almost 35 minutes at temperatures above 70 degrees Farenheit. This increase is pretty modest relative to large spread in the delays at every dewpoint, so dewpoint also appears to account for little variation.
+
+## Question 9: Humidity plots - hourly and daily
+
+```{r}
+humid_plots_hourly <- hourly_weather_delay |>
+  filter(!is.na(avg_humid))
+nrow(humid_plots_hourly)
+
+ggplot(humid_plots_hourly, aes(avg_humid, avg_dep_delay)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth() +
+  labs(x = " Average Humidity (%)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average humidity (by airport, hourly)")
+
+humid_plots_daily <- daily_weather_delay |>
+  filter(!is.na(avg_humid))
+nrow(humid_plots_daily)
+
+ggplot(humid_plots_daily, aes(avg_humid, avg_dep_delay)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth() +
+  labs(x = " Average Humidity (%)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average humidity (by airport, daily)")
+```
+
+Humidity would show a modest positive association with departure delay, which is more apparent in the airport-daily plots than the airport-hourly. Average departure delay stays roughly about near 7-10 minutes up until almost 60% humidity and then rises slowly reaching about 28-30 minutes as humidity nears 100% for the daily data. Hourly data shows that the fitted line stays relatively stable under 10 minutes until roughly 65% humidity and ends near 28-30 minutes at near 100% humidity. Spread in delays at every humidity level vary widely. Humidity appears to account for only part of variation in the delay. High humidity is related to conditions like fog, rain, and summer storm weather, the data does not demonstrate that humidity by itself would be responsible for longer delays.
+
+## Question 9: Wind direction plots - hourly
+
+```{r}
+hourly_wind_direction <-  hourly_weather_delay |>  filter(!is.na(avg_wind_dir)) |> mutate(wind_direction = if_else(avg_wind_dir >= 337.5 | avg_wind_dir < 22.5, "north",
+                          if_else(avg_wind_dir < 67.5, "northeast",
+                          if_else(avg_wind_dir < 112.5, "east",
+                          if_else(avg_wind_dir < 157.5, "southeast",
+                          if_else(avg_wind_dir < 202.5, "south",
+                          if_else(avg_wind_dir < 247.5, "southwest",
+                          if_else(avg_wind_dir < 292.5, "west", "northwest")))))))) 
+nrow(hourly_wind_direction)
+
+ggplot(hourly_wind_direction, aes(wind_direction, avg_dep_delay)) +
+  geom_boxplot() +
+  labs(x = "Wind direction (categorized)",
+       y = "Average departure delay (min)",
+       title = "Average departure delay by Wind direction (by airport, hourly)") +
+  theme_minimal()
+
+```
+
+Since the wind direction is measured in angles, and the 25th and 75tj percentiles did not produce clear 90-degree cut-offs, I divided the wind_direction compass into 8 sectors to describe the different direction sectors of wind. I also only calculated the airport-hour for this variable because ebery flight in an airport-hour grouping shares only one wind direction reading, and it is not an average of multiple wind directions. This would be difficult to do in daily because average wind direction would take the average of many differently hourly angles and averaging circular measurements is not as informative or reliable. Findings should be carefully interpreted for this reason. The boxplot shows spread of hourly delays for each wind-direction category.
+
+Average wind direction distribution is strongly right skewed across all direction. Most of the airport-hours have modest delays, but a small number have extremely large average delays, sometimes going over 200 minutes . North and west winds happen to have lower median hourly average departure delays whereas southeast and south winds appear to have slighly higher medians. All the boxes overlap, so differences between wind-direction categories are small compared to the variability in hourly average departure delays within each category.
+
+## Question 9: Wind speed plots - hourly and daily
+
+```{r}
+wind_speed_plots_hourly <- hourly_weather_delay |>
+  filter(!is.na(avg_wind_speed))
+nrow(wind_speed_plots_hourly)
+
+ggplot(wind_speed_plots_hourly, aes(avg_wind_speed, avg_dep_delay)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth() +
+  labs(x = " Average Wind speed (mph)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average Wind speed (by airport, hourly and daily)")
+
+wind_speed_plots_daily <- daily_weather_delay |>
+  filter(!is.na(avg_wind_speed))
+nrow(wind_speed_plots_daily)
+
+ggplot(wind_speed_plots_daily, aes(avg_wind_speed, avg_dep_delay)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth() +
+  labs(x = " Average Wind speed (mph)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average Wind speed (by airport, daily)")
+```
+
+Wind speed has a weak positive association with departure delays in both plots. It is not a strong predictor for airport-daily or airport-hour level. In the airport-daily plot, the fitted line rises only slightly, from about 10 minutes at low wind speeds of 0-15 mph to about 16 minutes near 30 mph. In the airport-hourly plot, the line increases from roughly 10 minutes at 0 mph to about 30 minutes at the 40 mph, but few observations exist above 30 mph, so the upward trend there is uncertain. Flight delays vary widely at every wind speed, and most observations are concentrated between about 5 and 20 mph. Findings should be interpreted carefully.
+
+## Question 9: Wind gust plots - hourly and daily
+
+```{r}
+
+wind_gust_plots_hourly <- hourly_weather_delay |>
+  filter(!is.na(avg_wind_gust))
+nrow(wind_gust_plots_hourly)
+
+ggplot(wind_gust_plots_hourly, aes(avg_wind_gust, avg_dep_delay)) +
+  geom_point(alpha = 0.1) + xlim(15, 70) +
+  geom_smooth() +
+  labs(x = " Average Wind gust (mph)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average Wind gust (by airport, hourly)")
+
+wind_gust_plots_daily <- daily_weather_delay |>
+  filter(!is.na(avg_wind_gust))
+nrow(wind_gust_plots_daily)
+
+ggplot(wind_gust_plots_daily, aes(avg_wind_gust, avg_dep_delay)) +
+  geom_point(alpha = 0.1) +  xlim(15, 70) +
+  geom_smooth() +
+  labs(x = " Average Wind gust (mph)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average Wind gust (by airport, daily)")
+```
+
+Wind gust shows a weak nonlinear association with departure delays for the airport-hourly level, where the fitted line rises gradually from about 10 minutes near 16 mph to about 30 minutes near 67 mph. At the airport-daily level, the fitted curve is fairly stagnant between about 20-30 mph, then rises more steeply at higher gust, reaching about 46 minutes near 67 mph. Most of the observations are concentrated in average wind gust of 15-30 mph, with few very observations in 40-50 mph and a particularly single outlying observation at 67 mph, which appears to pull the fitted curve drastically upwards. The observed steep increase should be interpreted cautiously because it may be driven by this influential observation rather than an association between wind gust and departure delay. Note that almost 76% of the data is also missing for this variable, further limiting these results from being generalizable.
+
+## Question 9: Precipitation plots - hourly and daily
+
+```{r}
+precip_plots_hourly <- hourly_weather_delay |>
+  filter(!is.na(avg_precip) & avg_precip > 0)
+nrow(precip_plots_hourly)
+
+ggplot(precip_plots_hourly, aes(avg_precip, avg_dep_delay)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth() +
+  labs(x = " Average Precipitation (inches)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average precipitation (by airport, hourly)")
+
+precip_plots_daily <- daily_weather_delay |>
+   filter(!is.na(avg_precip) & avg_precip > 0)
+nrow(precip_plots_daily)
+
+ggplot(precip_plots_daily, aes(avg_precip, avg_dep_delay)) +
+  geom_point(alpha = 0.1) +
+  geom_smooth() +
+  labs(x = " Average Precipitation (inches)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average precipitation (by airport, daily)")
+```
+
+Precipitation shows a weak but positive association with departure delays for the airport-hour and airport-daily level at low precipitation levels in both plots. Most of the observations are concentrated in average precipitatiom of 0 to 0.12 inches, with few very observations in 0.50-1.25 inches in the airport-hourly plot. The fitted line rises from roughly 25 minutes near 0 inches to about 45 minutes near 0.25 inches, and then increases slowly. One particular outlying observation at almost 1.25 inches appears to pull the fitted curve sharply upwards in the airport-hour plot, so findings should be interpreted carefully. In the airport-day plot, most observations are concentrated between 0 and 0.05 inches. The fitted curve initially increases, dips within this range, and then increases slightly. Average departure delays remain relatively stagnant at approximately 35-40 minutes between precipitation levels of 0.05-0.125 inches. Past 0.15 inches, the fitted curve declines gradually because of an influential observation. The limited number of observations at higher precipitation levels makes the fitted trends unstable and inconclusive about the association between precipitation and departure delays.
+
+## Question 9: Pressure plots - hourly and daily
+
+```{r}
+pressure_plots_hourly <- hourly_weather_delay |>
+  filter(!is.na(avg_pressure))
+nrow(pressure_plots_hourly)
+
+ggplot(pressure_plots_hourly, aes(avg_pressure, avg_dep_delay)) +
+  geom_point(alpha = 0.1) + xlim(975,1045) +
+  geom_smooth() +
+  labs(x = " Average Pressure(mb)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average pressure (by airport, hourly)")
+
+pressure_plots_daily <- daily_weather_delay |>
+   filter(!is.na(avg_precip))
+nrow(pressure_plots_daily)
+
+ggplot(pressure_plots_daily, aes(avg_pressure, avg_dep_delay)) +
+  geom_point(alpha = 0.1) + xlim(995,1040) +
+  geom_smooth() +
+  labs(x = " Average Pressure(mb)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average pressure (by airport, daily)")
+```
+
+Atmospheric pressure shows a modest negative association with departure delays for the airport-hour and airport-daily level, particulary past 1000 mb. In both plots, most of the observations are concentrated in average pressure of 1000 to 1045 mb. In the airport-daily level, lower pressures of 990-1000 mb corresponded to the average departure delays of around 25 minutes while average delays decline steadily to about 6-7 minutes by 1030 mb and level off. Pattern suggesting higher atmospheric pressure is associated with shorter departure delays, but delays vary widely at every pressure elvel. Findings should be interpreted carefully because almost 11% of the data is missing for this variable.
+
+## Question 9:Visibility plots - hourly and daily
+
+```{r}
+visib_plots_hourly <- hourly_weather_delay |>
+  filter(!is.na(avg_visib))
+nrow(visib_plots_hourly)
+
+ggplot(visib_plots_hourly, aes(avg_visib, avg_dep_delay)) +
+  geom_point(alpha = 0.1) + 
+  geom_smooth() +
+  labs(x = " Average visibility (mi)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average visibility (by airport, hourly)")
+
+visib_plots_daily <- daily_weather_delay |>
+   filter(!is.na(avg_visib))
+nrow(visib_plots_daily)
+
+ggplot(visib_plots_daily, aes(avg_visib, avg_dep_delay)) +
+  geom_point(alpha = 0.1) + 
+  geom_smooth() +
+  labs(x = " Average Visibility(mi)", y = "Average departure delay (min)",
+       title = "Average departure delay vs. average visibility (by airport, daily)")
+```
+
+Both plots show a weak and noisy relationship between average visibility and average departure delay. In the airport-hourly data, the fitted line is nearly flat at roughly 20-30 minutes of delay, dropping only slightly near 10 miles of visibility. The daily data show delays are steady around 25 minutes until about 7 miles, then average delays decline strongly to under 10 minutes at 10 miles. Average visibility observations vary widely at every visibility level, and the many observations are concentrated directly at 10 miles, forcing the curve downwards. This is expected as most visibility observations were 10 miles in the data summary. Poor visibility is modestly associated with longer delays, but visibility alone explains little of the variation. Findings should be interpreted carefully.
+
+Overall, humidity and pressure were the modest associations among all weather variables, but these conclusions are limited for the reasons stated above.

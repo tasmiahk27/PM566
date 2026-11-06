@@ -1,0 +1,128 @@
+---
+title: "Lab05"
+format: html
+editor: visual
+embed-resources: true
+---
+
+## Setup
+
+```{r}
+library(dplyr)
+# Download the data
+met <- read.csv("~/Downloads/met_all.gz")
+stations <- read.csv("https://noaa-isd-pds.s3.amazonaws.com/isd-history.csv")
+stations$USAF <- as.integer(stations$USAF)
+
+# Dealing with blanks and 999999
+stations$USAF[stations$USAF == 999999] <- NA
+stations$CTRY[stations$CTRY == ""] <- NA
+stations$STATE[stations$STATE == ""] <- NA
+
+# Selecting the three relevant columns, and keeping unique records
+stations <- unique(stations[, c('USAF', 'CTRY', 'STATE')])
+
+# Dropping NAs
+stations <- stations[!is.na(stations$USAF), ]
+
+# Removing duplicates
+stations <- stations[!duplicated(stations$USAF), ]
+
+merged <- merge(
+  # Data
+  x     = met,      
+  y     = stations, 
+  # List of variables to match
+  by.x  = "USAFID",
+  by.y  = "USAF", 
+  # Which obs to keep?
+  all.x = TRUE,      
+  all.y = FALSE
+  )
+
+head(merged[, c('USAFID', 'CTRY', 'STATE','lat', 'lon','temp','wind.sp', 'atm.press')], n = 4)
+
+```
+
+## Question 1: Representative station for the US
+```{r}
+summary <- merged |> group_by(USAFID) |>
+  summarise (
+    temp_med = median(temp, na.rm=TRUE),
+    wind.sp_med   = median(wind.sp, na.rm=TRUE),
+    atm.press_med = median(atm.press, na.rm =TRUE)
+  ) |> 
+  arrange(USAFID) |>  filter(!is.na(atm.press_med), !is.na(wind.sp_med), !is.na(temp_med)) 
+
+median_stations <- summary |> 
+  summarise(
+    temp_station      = USAFID[which.min(abs(temp_med - quantile(temp_med, 0.5)))],
+    wind_station      = USAFID[which.min(abs(wind.sp_med - quantile(wind.sp_med, 0.5)))],
+    atm.press_station = USAFID[which.min(abs(atm.press_med - quantile(atm.press_med, 0.5)))]
+  )
+
+print(median_stations)
+```
+These three do not coincide because each station is different from one another. This means that the median temperature station is different from the median wind speed station, which is also different from the median atmospheric pressure station.
+
+## Question 2: Representative station per state
+
+```{r}
+lat_lon <- merged |> group_by(STATE) |>
+  summarise (
+   lat_med = median(lat, na.rm=TRUE),
+    lon_med = median(lon, na.rm=TRUE)) |> mutate(station_type = "median") |> 
+  select(STATE, lat_med, lon_med, station_type) |>
+  arrange(STATE) |>  filter(!is.na(lat_med), !is.na(lon_med)) 
+print(lat_lon)
+```
+## Question 3: In the middle?
+```{r}
+library(ggplot2)
+state <- merged |>   filter(!is.na(lat), !is.na(lon), !is.na(STATE)) |> group_by(STATE) |>
+  mutate(
+    mean_lat = mean(lat, na.rm = TRUE),
+    mean_lon = mean(lon, na.rm = TRUE), dist_to_mean = (lat - mean_lat)^2 + (lon - mean_lon)^2
+  ) |> filter(dist_to_mean == min(dist_to_mean)) |> distinct(STATE, USAFID, .keep_all = TRUE)  |> mutate(station_type = "center") |> 
+  select(USAFID, STATE, lat, lon, station_type) |> 
+  arrange(STATE) 
+
+print(state)
+
+ggplot(map_data("state"), aes(x = long, y = lat)) +
+  geom_map(aes(map_id = region), map = map_data("state"), col = "lightgrey", fill = "gray") +
+  geom_point(
+    data    = state,
+    mapping = aes(x = lon, y = lat),color = "red", size = 2.5, alpha = 0.8
+  ) + geom_point(
+    data = lat_lon,
+    aes(x = lon_med, y = lat_med),
+    color = "blue", size = 2.5, alpha = 0.8
+  ) +
+  coord_quickmap() + labs(
+    title = "State Center Comparisons",
+    subtitle = "Blue = Median Weather Stations | Red = Mean Weather Stations"
+  )
+
+```
+
+## Question 4: Means of means
+```{r}
+large_table <- merged |> group_by(STATE) |> mutate(tempstate_avg = mean(temp, na.rm = TRUE)) |>
+  mutate(
+    temp_category = ifelse(tempstate_avg < 20, "low", 
+                    ifelse(tempstate_avg < 25, "Mid", "High"))
+  ) |> group_by(temp_category) |>
+  summarise(
+    num_states      = n_distinct(STATE),
+    num_entries     = n(),
+    num_na_entries  = sum(is.na(temp) | is.na(wind.sp) | is.na(atm.press)),
+    num_stations    = n_distinct(USAFID),
+    mean_temp       = mean(temp, na.rm = TRUE),
+    mean_wind_speed = mean(wind.sp, na.rm = TRUE),
+    mean_pressure   = mean(atm.press, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+```
+   
